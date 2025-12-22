@@ -4,64 +4,151 @@
 Использует faster-whisper (самый быстрый вариант)
 """
 
+import argparse
+import sys
+from pathlib import Path
 from faster_whisper import WhisperModel
 
-# Путь к вашему аудио файлу
-AUDIO_FILE = "WhatsApp Audio 2025-12-22 at 16.18.38.opus"
 
-# Выберите размер модели:
-# "tiny"   - ~75MB, самая быстрая, менее точная
-# "base"   - ~142MB, хороший баланс скорости и точности  ⭐ РЕКОМЕНДУЕТСЯ
-# "small"  - ~461MB, хорошая точность для русского
-# "medium" - ~1.5GB, высокая точность
-# "large"  - ~2.9GB, максимальная точность
-MODEL_SIZE = "base"
+def main():
+    parser = argparse.ArgumentParser(
+        description='Транскрибация аудио файлов с помощью Whisper',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Примеры использования:
+  %(prog)s audio.opus
+  %(prog)s audio.opus -l ru
+  %(prog)s audio.opus -o result.txt
+  %(prog)s audio.opus -m small -l ru -o transcription.txt
 
-# Язык аудио
-# LANGUAGE = "ru"
-LANGUAGE = "es"
+Размеры моделей:
+  tiny   - ~75MB,  самая быстрая, менее точная
+  base   - ~142MB, хороший баланс (по умолчанию)
+  small  - ~461MB, хорошая точность для русского
+  medium - ~1.5GB, высокая точность
+  large  - ~2.9GB, максимальная точность
+        """
+    )
 
-print(f"🎙️  Загрузка модели '{MODEL_SIZE}'...")
-print("   (При первом запуске модель будет скачана с HuggingFace)")
+    parser.add_argument(
+        'input_file',
+        type=str,
+        help='Путь к аудио файлу для транскрибации'
+    )
 
-# Создаём модель
-# device="cuda" - для Nvidia GPU (намного быстрее)
-# device="cpu"  - для процессора
-model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+    parser.add_argument(
+        '-l', '--language',
+        type=str,
+        default='ru',
+        help='Язык аудио (по умолчанию: ru). Примеры: ru, en, es, de, fr'
+    )
 
-print(f"\n📝 Транскрибация файла: {AUDIO_FILE}\n")
+    parser.add_argument(
+        '-o', '--output',
+        type=str,
+        default=None,
+        help='Файл для сохранения результата (по умолчанию: <input_file>.txt)'
+    )
 
-# Транскрибируем
-segments, info = model.transcribe(
-    AUDIO_FILE,
-    language=LANGUAGE,
-    beam_size=5,  # Чем больше - тем точнее, но медленнее
-    vad_filter=True,  # Убирает тишину
-)
+    parser.add_argument(
+        '-m', '--model',
+        type=str,
+        default='base',
+        choices=['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3'],
+        help='Размер модели (по умолчанию: base)'
+    )
 
-# Выводим результаты
-print("="*70)
-print("РЕЗУЛЬТАТ:")
-print("="*70)
+    parser.add_argument(
+        '--device',
+        type=str,
+        default='cpu',
+        choices=['cpu', 'cuda'],
+        help='Устройство для вычислений: cpu или cuda (по умолчанию: cpu)'
+    )
 
-full_text = []
-for segment in segments:
-    text = segment.text.strip()
-    timestamp = f"[{segment.start:.1f}s → {segment.end:.1f}s]"
-    print(f"{timestamp:20s} {text}")
-    full_text.append(text)
+    parser.add_argument(
+        '--beam-size',
+        type=int,
+        default=5,
+        help='Beam size для декодирования (по умолчанию: 5). Больше = точнее, но медленнее'
+    )
 
-print("\n" + "="*70)
-print("ВЕСЬ ТЕКСТ ЦЕЛИКОМ:")
-print("="*70)
-result = " ".join(full_text)
-print(result)
+    args = parser.parse_args()
 
-# Сохраняем в файл
-output_file = AUDIO_FILE.replace(".opus", ".txt")
-with open(output_file, "w", encoding="utf-8") as f:
-    f.write(result)
+    # Проверяем существование входного файла
+    input_path = Path(args.input_file)
+    if not input_path.exists():
+        print(f"❌ Ошибка: Файл не найден: {args.input_file}")
+        sys.exit(1)
 
-print(f"\n✅ Сохранено в файл: {output_file}")
-print(f"\n📊 Распознанный язык: {info.language} ({info.language_probability:.1%})")
-print(f"⏱️  Длительность аудио: {info.duration:.1f} секунд")
+    # Определяем выходной файл
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        # Заменяем расширение на .txt
+        output_path = input_path.with_suffix('.txt')
+
+    print("=" * 70)
+    print(f"🎙️  Загрузка модели '{args.model}'...")
+    print("   (При первом запуске модель будет скачана с HuggingFace)")
+    print("=" * 70)
+
+    # Создаём модель
+    try:
+        model = WhisperModel(
+            args.model,
+            device=args.device,
+            compute_type="int8" if args.device == "cpu" else "float16"
+        )
+    except Exception as e:
+        print(f"❌ Ошибка загрузки модели: {e}")
+        sys.exit(1)
+
+    print(f"\n📝 Транскрибация файла: {args.input_file}")
+    print(f"🌍 Язык: {args.language}")
+    print(f"🤖 Модель: {args.model}")
+    print(f"💾 Выходной файл: {output_path}\n")
+
+    # Транскрибируем
+    try:
+        segments, info = model.transcribe(
+            str(input_path),
+            language=args.language,
+            beam_size=args.beam_size,
+            vad_filter=True,  # Убирает тишину
+        )
+
+        # Выводим результаты
+        print("=" * 70)
+        print("РЕЗУЛЬТАТ:")
+        print("=" * 70)
+
+        full_text = []
+        for segment in segments:
+            text = segment.text.strip()
+            timestamp = f"[{segment.start:.1f}s → {segment.end:.1f}s]"
+            print(f"{timestamp:20s} {text}")
+            full_text.append(text)
+
+        print("\n" + "=" * 70)
+        print("ВЕСЬ ТЕКСТ ЦЕЛИКОМ:")
+        print("=" * 70)
+        result = " ".join(full_text)
+        print(result)
+
+        # Сохраняем в файл
+        output_path.write_text(result, encoding="utf-8")
+
+        print(f"\n✅ Сохранено в файл: {output_path}")
+        print(f"\n📊 Распознанный язык: {info.language} ({info.language_probability:.1%})")
+        print(f"⏱️  Длительность аудио: {info.duration:.1f} секунд")
+
+    except Exception as e:
+        print(f"\n❌ Ошибка транскрибации: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
