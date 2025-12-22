@@ -1,3 +1,5 @@
 .python-version
 myenv
 .idea
+*.opus
+*.txt

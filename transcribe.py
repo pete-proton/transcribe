@@ -7,7 +7,7 @@
 from faster_whisper import WhisperModel
 
 # Путь к вашему аудио файлу
-AUDIO_FILE = "WhatsApp_Audio_2025-12-22_at_16_18_38.opus"
+AUDIO_FILE = "WhatsApp Audio 2025-12-22 at 16.18.38.opus"
 
 # Выберите размер модели:
 # "tiny"   - ~75MB, самая быстрая, менее точная
@@ -18,7 +18,8 @@ AUDIO_FILE = "WhatsApp_Audio_2025-12-22_at_16_18_38.opus"
 MODEL_SIZE = "base"
 
 # Язык аудио
-LANGUAGE = "ru"
+# LANGUAGE = "ru"
+LANGUAGE = "es"
 
 print(f"🎙️  Загрузка модели '{MODEL_SIZE}'...")
 print("   (При первом запуске модель будет скачана с HuggingFace)")
