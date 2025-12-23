@@ -57,3 +57,8 @@ python transcribe.py audio.opus -l es -o resultado.txt
 - `pt` - португальский
 - `zh` - китайский
 - `ja` - японский
+
+# Использование split_video
+```bash
+python split_video.py "Screen Recording 2025-12-23 at 13.32.57.mov"
+```
