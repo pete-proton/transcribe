@@ -20,4 +20,6 @@ source myenv/bin/activate
 echo "Устанавливаем зависимости"
 pip install -r requirements.txt
 
+brew install ffmpeg
+
 echo "Установка завершена успешно!"

@@ -60,5 +60,9 @@ python transcribe.py audio.opus -l es -o resultado.txt
 
 # Использование split_video
 ```bash
+# С размером по умолчанию (4 GB)
 python split_video.py "Screen Recording 2025-12-23 at 13.32.57.mov"
+
+# С размером 3.9 GB
+python split_video.py "Screen Recording 2025-12-23 at 13.32.57.mov" 3.9
 ```
