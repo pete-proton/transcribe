@@ -9,7 +9,7 @@
 
 ### Только входной файл (язык: русский, выход: audio.txt)
 ```bash
-python transcribe.py "WhatsApp Audio 2025-12-22 at 16.18.38.opus" -l es
+python transcribe.py "WhatsApp Audio 2025-12-23 at 10.28.15.opus" -l ru -m large-v3
 ```
 
 ### Входной файл + язык
