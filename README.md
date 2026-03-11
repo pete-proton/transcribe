@@ -68,7 +68,7 @@ python transcribe.py video.mov -l en -o english_transcript.txt
 python transcribe.py video.mov -l ru -m small
 
 # С моделью large-v3 (медленнее, но максимальная точность)
-python transcribe.py "WhatsApp Audio 2026-01-27 at 10.14.35.opus" -l ru -m large-v3
+python transcribe.py "ssstwitter.com_1773064272922.mp4" -l en -m large-v3
 ```
 
 ## Размеры моделей
