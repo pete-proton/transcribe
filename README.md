@@ -15,7 +15,7 @@ python transcribe.py "WhatsApp Audio 2025-12-23 at 10.28.15.opus" -l ru -m large
 ### Видео файлы (MOV, MP4, AVI и т.д.)
 Скрипт автоматически извлечёт аудио дорожку из видео:
 ```bash
-python transcribe.py "Screen Recording 2025-12-23 at 13.32.57.mov" -l ru -m large-v3
+python transcribe.py "videoplayback.mp4" -l en -m turbo
 ```
 
 ### Входной файл + язык
