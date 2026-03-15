@@ -54,7 +54,7 @@ def main():
         '-m', '--model',
         type=str,
         default='base',
-        choices=['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3'],
+        choices=['tiny', 'base', 'small', 'medium', 'large', 'large-v2', 'large-v3', 'turbo'],
         help='Размер модели (по умолчанию: base)'
     )
 
