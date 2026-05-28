@@ -1,31 +1,49 @@
-# Настройка
+# Транскрипция аудио и генерация видео с субтитрами
+
+## Настройка
+
 ```bash
 . ./setup.sh
 ```
 
-# Использование
+Что устанавливается:
+- Python 3.12 через pyenv
+- `faster-whisper` (Python библиотека для текстовой транскрипции)
+- **`ffmpeg-full`** (НЕ regular ffmpeg!) - включает libass/libfreetype для burned субтитров
+- **`whisper-cpp`** - C++ Whisper, быстрее на Apple Silicon
+- Модель `large-v3-turbo` (~800 MB, лучший баланс для испанского/русского)
+
+> ⚠️ **Важно**: `regular ffmpeg` (`brew install ffmpeg`) **не подходит** - в нём нет subtitles / drawtext filter. Нужен именно `ffmpeg-full`. См. setup.sh для деталей.
+
+## Транскрипция (текст в .txt)
 
 ```bash
-python transcribe.py "Swiftly-TTD tech call.m4a" -l en -m turbo
+python transcribe.py "/Users/petrosipov/IdeaProjects/my/mi-espa-ol/calls/2026/05/26/a.m4a" -l es -m turbo
+python transcribe.py "/Users/petrosipov/IdeaProjects/my/interviews/info/calls/2026/05/27/globant/a.m4a" -l en -m turbo
+python transcribe.py "/Users/petrosipov/Downloads/tanya.opus" -l ru -m turbo
 python transcribe.py video.mov -l en -o result.txt
 ```
 
 ## Размеры моделей
-- `tiny` - ~75MB, самая быстрая, менее точная
-- `base` - ~142MB, хороший баланс (по умолчанию)
-- `small` - ~461MB, хорошая точность для русского
-- `medium` - ~1.5GB, высокая точность
-- `large-v3` - ~2.9GB, максимальная точность
-- `turbo` - ~809MB, быстрая версия large-v3 (~8x быстрее)
+
+| Модель | Размер | Особенности |
+|---|---|---|
+| `tiny` | ~75 MB | самая быстрая, менее точная |
+| `base` | ~142 MB | хороший баланс (default) |
+| `small` | ~461 MB | хорошая точность для русского |
+| `medium` | ~1.5 GB | высокая точность |
+| `large-v3` | ~2.9 GB | максимальная точность |
+| `turbo` | ~809 MB | быстрая версия large-v3 (~8x быстрее) |
 
 ## Коды языков
+
 `ru` русский, `en` английский, `es` испанский, `de` немецкий, `fr` французский, `zh` китайский, `ja` японский
 
-# Разделение больших видео
+## Разделение больших видео
 
 ```bash
 # Разделить на части по 3.9 GB
-python split_video.py "recording.mov" 3.9
+python split_video.py "/Users/petrosipov/IdeaProjects/swiftly/swiftly-info/calls/2026/05/18/Seth/Screen Recording 2026-05-18 at 18.02.23.mov" 3.9
 
 # Транскрибировать каждую часть
 python transcribe.py "recording.part01.mov" -l ru -m turbo -o part01.txt
@@ -34,3 +52,181 @@ python transcribe.py "recording.part02.mov" -l ru -m turbo -o part02.txt
 # Объединить результаты
 cat part01.txt part02.txt > full_transcript.txt
 ```
+
+## Генерация SRT (субтитры с timestamps)
+
+`transcribe.py` пишет plain text. Для SRT нужно использовать **whisper-cpp**:
+
+```bash
+# Конвертировать m4a в wav (whisper-cpp принимает только wav/mp3/flac/ogg)
+ffmpeg -i a.m4a -ar 16000 -ac 1 -c:a pcm_s16le a.wav
+
+# Сгенерировать SRT (Spanish, large-v3-turbo, output to a.srt)
+whisper-cli \
+  -m ~/.cache/whisper-models/ggml-large-v3-turbo.bin \
+  -l es \
+  -osrt \
+  -of a \
+  -t 8 \
+  a.wav
+
+# Получаешь a.srt с timestamps
+# Для русского: -l ru
+# Для английского: -l en
+```
+
+## Генерация видео с burned субтитрами
+
+После того как есть `a.m4a` + `a.srt`:
+
+```bash
+# Видео = чёрный фон 1280x720 + аудио + впечённые субтитры
+ffmpeg -y \
+  -f lavfi -i "color=c=black:s=1280x720:r=24" \
+  -i a.m4a \
+  -vf "subtitles=a.srt:force_style='FontName=Helvetica,FontSize=22,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=2,Shadow=0,MarginV=80,Alignment=2'" \
+  -c:v libx264 -preset fast -crf 23 \
+  -c:a aac -b:a 128k \
+  -shortest \
+  a_subtitled.mp4
+```
+
+Результат - mp4 ~30-40 MB на 30 мин аудио, субтитры всегда видны в любом плеере.
+
+### Burned субтитры на существующее видео
+
+Если у тебя уже есть видеозапись (Screen Recording.mov например) - наложить субтитры:
+
+```bash
+ffmpeg -y \
+  -i "Screen Recording.mov" \
+  -i a.m4a \
+  -vf "subtitles=a.srt:force_style='FontName=Helvetica,FontSize=24,Alignment=2,MarginV=60,Outline=2'" \
+  -map 0:v -map 1:a \
+  -c:v libx264 -preset fast -crf 23 \
+  -c:a aac -b:a 128k \
+  -shortest \
+  output_with_subs.mp4
+```
+
+### Soft субтитры (toggleable, меньше места)
+
+Если не нужно burning - просто embed SRT в mp4 container:
+
+```bash
+ffmpeg -y \
+  -f lavfi -i "color=c=black:s=1280x720:r=24" \
+  -i a.m4a \
+  -i a.srt \
+  -map 0:v -map 1:a -map 2:s \
+  -c:v libx264 -preset fast -crf 28 \
+  -c:a aac -b:a 128k \
+  -c:s mov_text \
+  -shortest \
+  a_softsub.mp4
+```
+
+⚠️ Soft субтитры работают в **VLC / IINA / mpv**, но **QuickTime может не показать**.
+Для гарантированной видимости в любом плеере - burned (см. выше).
+
+## Перевод SRT (через Google Translate)
+
+`translate_srt.py` переводит SRT subtitle file с одного языка на другой, сохраняя timestamps. Использует **deep-translator** (free Google Translate web).
+
+```bash
+# es → ru
+python translate_srt.py a.srt a-ru.srt es,ru
+
+# en → ru
+python translate_srt.py a.srt a-ru.srt en,ru
+
+# ru → en
+python translate_srt.py a.srt a-en.srt ru,en
+```
+
+Скрипт батчит по 50 segments, делает rate-limit-friendly delays. 30 мин audio с 1353 segments переводится ~3-5 мин.
+
+### Видео с двумя субтитрами одновременно (оригинал + перевод)
+
+После того как есть `a.srt` (например es) и `a-ru.srt`:
+
+```bash
+ffmpeg -y \
+  -f lavfi -i "color=c=black:s=1280x720:r=24" \
+  -i a.m4a \
+  -vf "subtitles=a.srt:force_style='FontName=Helvetica,FontSize=20,Alignment=2,MarginV=130,PrimaryColour=&HFFFFFF&,Outline=2',subtitles=a-ru.srt:force_style='FontName=Helvetica,FontSize=22,Alignment=2,MarginV=40,PrimaryColour=&H00FFFF&,Outline=2'" \
+  -c:v libx264 -preset fast -crf 23 \
+  -c:a aac -b:a 128k \
+  -shortest \
+  a_dual_subtitled.mp4
+```
+
+- **Top сабы** (Spanish, белый): MarginV=130
+- **Bottom сабы** (Russian, жёлтый): MarginV=40
+- `PrimaryColour=&H00FFFF&` = желтый в BGR (00=B, FF=G, FF=R)
+
+## Pipeline целиком (audio → subtitled video)
+
+```bash
+INPUT_AUDIO="path/to/a.m4a"
+LANG="es"  # или ru, en
+
+# 1. Конвертировать в wav для whisper-cpp
+ffmpeg -y -i "$INPUT_AUDIO" -ar 16000 -ac 1 -c:a pcm_s16le a.wav
+
+# 2. Whisper → SRT
+whisper-cli \
+  -m ~/.cache/whisper-models/ggml-large-v3-turbo.bin \
+  -l $LANG \
+  -osrt -of a \
+  -t 8 \
+  a.wav
+
+# 3. Audio + SRT → видео с burned subtitles
+ffmpeg -y \
+  -f lavfi -i "color=c=black:s=1280x720:r=24" \
+  -i "$INPUT_AUDIO" \
+  -vf "subtitles=a.srt:force_style='FontName=Helvetica,FontSize=22,Alignment=2,MarginV=80,Outline=2,BorderStyle=1'" \
+  -c:v libx264 -preset fast -crf 23 \
+  -c:a aac -b:a 128k \
+  -shortest \
+  a_subtitled.mp4
+
+# 4. Cleanup
+rm a.wav
+```
+
+## Style options для субтитров (force_style)
+
+| Параметр | Значение | Что делает |
+|---|---|---|
+| `FontName` | `Helvetica`, `Arial`, etc | шрифт |
+| `FontSize` | `22`, `24`, `28` | размер (на 720p оптимально 22-26) |
+| `PrimaryColour` | `&HFFFFFF&` | цвет текста (BGR hex) - белый |
+| `OutlineColour` | `&H000000&` | цвет обводки - чёрный |
+| `BorderStyle` | `1` (outline) или `3` (box) | стиль фона |
+| `Outline` | `2` | толщина обводки в пикселях |
+| `Shadow` | `0` или `2` | тень |
+| `MarginV` | `60`-`120` | отступ снизу |
+| `Alignment` | `2` (center bottom), `8` (center top) | позиция |
+
+## Troubleshooting
+
+**"No option name near..." на subtitles filter** = у тебя regular ffmpeg, не ffmpeg-full. Установи:
+```bash
+brew uninstall ffmpeg
+brew install ffmpeg-full
+brew link ffmpeg-full --force --overwrite
+ffmpeg -filters | grep -E "subtitles|drawtext"  # должны быть оба
+```
+
+**Whisper модель не найдена** = скачать вручную:
+```bash
+curl -L -o ~/.cache/whisper-models/ggml-large-v3-turbo.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
+```
+
+**SRT с дрейфом sync** = whisper-cpp иногда смешивает короткие фразы. Опции:
+- `--max-len 100` - макс длина сегмента (char-based)
+- `--split-on-word` - сплитить по словам, не токенам
+- `--word-thold 0.5` - threshold для word timestamps
