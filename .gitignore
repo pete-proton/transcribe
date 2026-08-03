@@ -8,3 +8,6 @@ myenv
 *.ogg
 *.m4a
 run.txt
+.history
+.claude
+.vscode

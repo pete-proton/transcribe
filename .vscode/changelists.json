@@ -3,15 +3,9 @@
     {
       "name": "Default",
       "files": [
-        "README.md",
-        ".history/README_20260703091439.md",
-        ".history/README_20260720175525.md",
-        ".history/README_20260721054806.md",
         ".vscode/changelists.json",
-        ".history/README_20260722054352.md",
-        ".history/README_20260723060453.md",
-        ".history/README_20260723125110.md",
-        ".history/README_20260727115415.md"
+        "README.md",
+        ".gitignore"
       ]
     }
   ],
