@@ -19,7 +19,7 @@
 
 ```bash
 python transcribe.py "/Users/petrosipov/Downloads/Xavier García Albiol albiol_xg Instagram reel.mp4" -l es -m turbo
-python transcribe.py "/Users/petrosipov/IdeaProjects/mf/mf/calls/2026/08/03/mifid/a.m4a" -l en -m turbo
+python transcribe.py "/Users/petrosipov/IdeaProjects/mf/mf/calls/2026/08/05/standup/a.m4a" -l en -m turbo
 python transcribe.py video.mov -l en -o result.txt
 ```
 

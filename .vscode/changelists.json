@@ -3,9 +3,8 @@
     {
       "name": "Default",
       "files": [
-        ".vscode/changelists.json",
         "README.md",
-        ".gitignore"
+        ".vscode/changelists.json"
       ]
     }
   ],
