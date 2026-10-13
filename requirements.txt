@@ -1,2 +1,4 @@
 faster-whisper==1.2.1
+# av 19 убрал аргумент metadata_errors, который faster-whisper 1.2.1 передаёт в av.open()
+av==18.1.0
 deep-translator==1.11.4
