@@ -7,10 +7,10 @@
 ```
 
 Что устанавливается:
-- Python 3.12 через pyenv
+- Python 3.12 через Homebrew (или pyenv, если он установлен)
 - `faster-whisper` (Python библиотека для текстовой транскрипции)
 - **`ffmpeg-full`** (НЕ regular ffmpeg!) - включает libass/libfreetype для burned субтитров
-- **`whisper-cpp`** - C++ Whisper, быстрее на Apple Silicon
+- **`whisper.cpp`** - C++ Whisper, быстрее на Apple Silicon
 - Модель `large-v3-turbo` (~800 MB, лучший баланс для испанского/русского)
 
 > ⚠️ **Важно**: `regular ffmpeg` (`brew install ffmpeg`) **не подходит** - в нём нет subtitles / drawtext filter. Нужен именно `ffmpeg-full`. См. setup.sh для деталей.

@@ -1,24 +1,38 @@
 #!/bin/bash
-# install pyenv, see https://github.com/pyenv/pyenv
+# Можно запускать как `./setup.sh` или `. ./setup.sh` (тогда venv останется активным).
+# Вся установка идёт в subshell с `set -e`, чтобы при ошибке не закрывался
+# текущий терминал, если скрипт был запущен через `.`.
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
+(
 set -e
+cd "$PROJECT_DIR"
 
 # Версия Python для установки
 PYTHON_VERSION="3.12"
 
-echo "Устанавливаем Python $PYTHON_VERSION через pyenv"
-pyenv install $PYTHON_VERSION --skip-existing
+# Python 3.12 берём из Homebrew (pyenv не нужен).
+# Если pyenv всё же установлен - используем его.
+if command -v pyenv >/dev/null 2>&1; then
+  echo "Устанавливаем Python $PYTHON_VERSION через pyenv"
+  pyenv install "$PYTHON_VERSION" --skip-existing
+  pyenv local "$PYTHON_VERSION"
+  PYTHON="$(pyenv which python)"
+else
+  echo "Устанавливаем Python $PYTHON_VERSION через Homebrew"
+  brew list --versions "python@$PYTHON_VERSION" >/dev/null || brew install "python@$PYTHON_VERSION"
+  PYTHON="$(brew --prefix "python@$PYTHON_VERSION")/bin/python$PYTHON_VERSION"
+fi
 
-echo "Устанавливаем версию Python $PYTHON_VERSION для проекта"
-pyenv local $PYTHON_VERSION
-
-echo "Создаём виртуальное окружение"
-python -m venv myenv
-
-echo "Активируем виртуальное окружение"
-source myenv/bin/activate
+if [ ! -x myenv/bin/python ]; then
+  echo "Создаём виртуальное окружение"
+  "$PYTHON" -m venv myenv
+fi
 
 echo "Устанавливаем зависимости"
-pip install -r requirements.txt
+myenv/bin/python -m pip install --upgrade pip
+myenv/bin/python -m pip install -r requirements.txt
 
 # ========================================================================
 # ffmpeg-full - нужно ИМЕННО full, не regular ffmpeg!
@@ -58,7 +72,7 @@ brew link ffmpeg-full --force --overwrite
 #   bash <(curl -s https://raw.githubusercontent.com/ggml-org/whisper.cpp/master/models/download-ggml-model.sh) large-v3-turbo
 # Положить в ~/.cache/whisper-models/
 # ========================================================================
-brew install whisper-cpp
+brew install whisper.cpp
 
 # Скачать модель large-v3-turbo (Mac-optimized, ~800MB)
 # если ещё нет
@@ -75,3 +89,19 @@ echo
 echo "Проверка:"
 echo "  ffmpeg -filters | grep -E 'subtitles|drawtext|ass '"
 echo "  whisper-cli --help"
+)
+SETUP_STATUS=$?
+
+if [ $SETUP_STATUS -ne 0 ]; then
+  echo "Установка прервалась с ошибкой ($SETUP_STATUS)" >&2
+  return $SETUP_STATUS 2>/dev/null || exit $SETUP_STATUS
+fi
+
+# Активация имеет смысл только при запуске через `. ./setup.sh`
+if (return 0 2>/dev/null); then
+  source "$PROJECT_DIR/myenv/bin/activate"
+  echo "Виртуальное окружение myenv активировано"
+else
+  echo
+  echo "Активировать окружение: source myenv/bin/activate"
+fi
